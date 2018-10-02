@@ -16,11 +16,6 @@ import (
 const PORT = "9001"
 
 func main() {
-	//c, err := GetTLSCredentials()
-	//if err != nil {
-	//	log.Fatalf("GetTLSCredentials err: %v", err)
-	//}
-
 	c, err := GetTLSCredentialsByCA()
 	if err != nil {
 		log.Fatalf("GetTLSCredentialsByCA err: %v", err)

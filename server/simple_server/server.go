@@ -8,9 +8,13 @@ import (
 	"io/ioutil"
 	"log"
 	"net"
+	"runtime/debug"
 
+	"github.com/grpc-ecosystem/go-grpc-middleware"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials"
+	"google.golang.org/grpc/status"
 
 	pb "github.com/EDDYCJY/go-grpc-example/proto"
 )
@@ -24,17 +28,20 @@ func (s *SearchService) Search(ctx context.Context, r *pb.SearchRequest) (*pb.Se
 const PORT = "9001"
 
 func main() {
-	//c, err := GetTLSCredentials()
-	//if err != nil {
-	//	log.Fatalf("GetTLSCredentials err: %v", err)
-	//}
-
 	c, err := GetTLSCredentialsByCA()
 	if err != nil {
 		log.Fatalf("GetTLSCredentialsByCA err: %v", err)
 	}
 
-	server := grpc.NewServer(grpc.Creds(c))
+	opts := []grpc.ServerOption{
+		grpc.Creds(c),
+		grpc_middleware.WithUnaryServerChain(
+			RecoveryInterceptor,
+			LoggingInterceptor,
+		),
+	}
+
+	server := grpc.NewServer(opts...)
 	pb.RegisterSearchServiceServer(server, &SearchService{})
 
 	lis, err := net.Listen("tcp", ":"+PORT)
@@ -43,6 +50,24 @@ func main() {
 	}
 
 	server.Serve(lis)
+}
+
+func LoggingInterceptor(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
+	log.Printf("gRPC method: %s, %v", info.FullMethod, req)
+	resp, err := handler(ctx, req)
+	log.Printf("gRPC method: %s, %v", info.FullMethod, resp)
+	return resp, err
+}
+
+func RecoveryInterceptor(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (resp interface{}, err error) {
+	defer func() {
+		if e := recover(); e != nil {
+			debug.PrintStack()
+			err = status.Errorf(codes.Internal, "Panic err: %v", e)
+		}
+	}()
+
+	return handler(ctx, req)
 }
 
 func GetTLSCredentials() (credentials.TransportCredentials, error) {
