@@ -40,8 +40,8 @@ func (t *Client) GetCredentialsByCA() (credentials.TransportCredentials, error) 
 	return c, err
 }
 
-func (t *Client) GetTLSCredentials(serverNameOverride string) (credentials.TransportCredentials, error) {
-	c, err := credentials.NewClientTLSFromFile(t.CertFile, serverNameOverride)
+func (t *Client) GetTLSCredentials() (credentials.TransportCredentials, error) {
+	c, err := credentials.NewClientTLSFromFile(t.CertFile, t.ServerName)
 	if err != nil {
 		return nil, err
 	}
