@@ -2,10 +2,6 @@ package main
 
 import (
 	"context"
-	"crypto/tls"
-	"crypto/x509"
-	"errors"
-	"io/ioutil"
 	"log"
 	"net"
 	"runtime/debug"
@@ -13,9 +9,9 @@ import (
 	"github.com/grpc-ecosystem/go-grpc-middleware"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/status"
 
+	"github.com/EDDYCJY/go-grpc-example/pkg/gtls"
 	pb "github.com/EDDYCJY/go-grpc-example/proto"
 )
 
@@ -28,7 +24,12 @@ func (s *SearchService) Search(ctx context.Context, r *pb.SearchRequest) (*pb.Se
 const PORT = "9001"
 
 func main() {
-	c, err := GetTLSCredentialsByCA()
+	tlsServer := gtls.Server{
+		CaFile:   "../../conf/ca.pem",
+		CertFile: "../../conf/server/server.pem",
+		KeyFile:  "../../conf/server/server.key",
+	}
+	c, err := tlsServer.GetCredentialsByCA()
 	if err != nil {
 		log.Fatalf("GetTLSCredentialsByCA err: %v", err)
 	}
@@ -68,38 +69,4 @@ func RecoveryInterceptor(ctx context.Context, req interface{}, info *grpc.UnaryS
 	}()
 
 	return handler(ctx, req)
-}
-
-func GetTLSCredentials() (credentials.TransportCredentials, error) {
-	c, err := credentials.NewServerTLSFromFile("../../conf/server/server.pem", "../../conf/server/server.key")
-	if err != nil {
-		return nil, err
-	}
-
-	return c, err
-}
-
-func GetTLSCredentialsByCA() (credentials.TransportCredentials, error) {
-	cert, err := tls.LoadX509KeyPair("../../conf/server/server.pem", "../../conf/server/server.key")
-	if err != nil {
-		return nil, err
-	}
-
-	certPool := x509.NewCertPool()
-	ca, err := ioutil.ReadFile("../../conf/ca.pem")
-	if err != nil {
-		return nil, err
-	}
-
-	if ok := certPool.AppendCertsFromPEM(ca); !ok {
-		return nil, errors.New("certPool.AppendCertsFromPEM err")
-	}
-
-	c := credentials.NewTLS(&tls.Config{
-		Certificates: []tls.Certificate{cert},
-		ClientAuth:   tls.RequireAndVerifyClientCert,
-		ClientCAs:    certPool,
-	})
-
-	return c, err
 }
