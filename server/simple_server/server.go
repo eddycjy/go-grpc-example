@@ -2,14 +2,13 @@ package main
 
 import (
 	"context"
-	"log"
-	"net"
-	"runtime/debug"
-
 	"github.com/grpc-ecosystem/go-grpc-middleware"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	"log"
+	"net"
+	"runtime/debug"
 
 	"github.com/EDDYCJY/go-grpc-example/pkg/gtls"
 	pb "github.com/EDDYCJY/go-grpc-example/proto"
@@ -18,6 +17,10 @@ import (
 type SearchService struct{}
 
 func (s *SearchService) Search(ctx context.Context, r *pb.SearchRequest) (*pb.SearchResponse, error) {
+	if ctx.Err() == context.Canceled {
+		return nil, status.Errorf(codes.Canceled, "searchService.Search canceled")
+	}
+
 	return &pb.SearchResponse{Response: r.GetRequest() + " Server"}, nil
 }
 
